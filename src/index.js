@@ -11,7 +11,7 @@ const {
   sendAccessToken,
 } = require('./tokens.js');
 const { fakeDB } = require('./fakeDB.js');
-const { isAuth } = require('./isAuth.js');
+const { isAuthorized } = require('./isAuth.js');
 
 // 1. Register a user
 // 2. Login a user
@@ -42,8 +42,8 @@ server.post('/register', async (req, res) => {
   try {
     // 1. Check if the user exist
     const user = fakeDB.find(user => user.email === email);
-    if (user) throw new Error('User already exist');
-    // 2. If not user exist already, hash the password
+    if (user) throw new Error('User already exists');
+    // 2. If no user exists, hash the password
     const hashedPassword = await hash(password, 10);
     // 3. Insert the user in "database"
     fakeDB.push({
@@ -80,7 +80,7 @@ server.post('/login', async (req, res) => {
     user.refreshtoken = refreshtoken;
     // 5. Send token. Refreshtoken as a cookie and accesstoken as a regular response
     sendRefreshToken(res, refreshtoken);
-    sendAccessToken(res, req, accesstoken);
+    sendAccessToken(req, res, accesstoken);
   } catch (err) {
     res.send({
       error: `${err.message}`,
@@ -90,6 +90,7 @@ server.post('/login', async (req, res) => {
 
 // 3. Logout a user
 server.post('/logout', (_req, res) => {
+  // sendRefreshToken sends the refresh to to the /refresh_token path also; make sure to clear it too
   res.clearCookie('refreshtoken', { path: '/refresh_token' });
   // Logic here for also remove refreshtoken from db
   return res.send({
@@ -100,10 +101,9 @@ server.post('/logout', (_req, res) => {
 // 4. Protected route
 server.post('/protected', async (req, res) => {
   try {
-    const userId = isAuth(req);
-    if (userId !== null) {
+    if (isAuthorized(req) !== null) {
       res.send({
-        data: 'This is protected data.',
+        data: 'You are authorized, but This is protected data.',
       });
     }
   } catch (err) {
@@ -117,21 +117,21 @@ server.post('/protected', async (req, res) => {
 server.post('/refresh_token', (req, res) => {
   const token = req.cookies.refreshtoken;
   // If we don't have a token in our request
-  if (!token) return res.send({ accesstoken: '' });
+  if (!token) return res.send({ message: 'you do not have a valid refresh token in your request, you should login first' });
   // We have a token, let's verify it!
   let payload = null;
   try {
     payload = verify(token, process.env.REFRESH_TOKEN_SECRET);
   } catch (err) {
-    return res.send({ accesstoken: '' });
+    return res.send({ message: 'your token could not be verified' });
   }
-  // token is valid, check if user exist
+  // token is valid, check if user exists
   const user = fakeDB.find(user => user.id === payload.userId);
-  if (!user) return res.send({ accesstoken: '' });
-  // user exist, check if refreshtoken exist on user
+  if (!user) return res.send({ accesstoken: 'the user does not exist, create it first' });
+  // user exists, check if refreshtoken exists on user
   if (user.refreshtoken !== token)
-    return res.send({ accesstoken: '' });
-  // token exist, create new Refresh- and accesstoken
+    return res.send({ accesstoken: 'refresh token does not exist, you should login first' });
+  // token exists, create new Refresh and Access tokens
   const accesstoken = createAccessToken(user.id);
   const refreshtoken = createRefreshToken(user.id);
   // update refreshtoken on user in db
@@ -139,6 +139,7 @@ server.post('/refresh_token', (req, res) => {
   user.refreshtoken = refreshtoken;
   // All good to go, send new refreshtoken and accesstoken
   sendRefreshToken(res, refreshtoken);
+  console.log(fakeDB);
   return res.send({ accesstoken });
 });
 
