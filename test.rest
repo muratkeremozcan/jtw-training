@@ -1,3 +1,4 @@
+@userAccessToken = Bearer {{createUser.res.body.accesstoken}}
 
 # @name createUser
 POST http://localhost:4000/register
@@ -17,4 +18,19 @@ Content-Type: application/json
   "email": "murat.hey@gmail.com",
   "password": "test"
 }
+###
+
+# @name testProtectedRoute
+POST http://localhost:4000/protected
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTU3MzkxMDU4NCwiZXhwIjoxNTczOTExNDg0fQ.cKr86z0Q3Br34YUfx5GCatBJQFST2z2Uawt5eeacgJk
+
+{
+  "email": "murat.hey@gmail.com",
+  "password": "test"
+}
+###
+
+# @name logout
+POST http://localhost:4000/logout
+
 ###

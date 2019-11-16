@@ -24,8 +24,8 @@ const sendAccessToken = (req, res, accesstoken) => {
   });
 };
 
-const sendRefreshToken = (res, token) => {
-  res.cookie('refreshtoken', token, {
+const sendRefreshToken = (res, refreshtoken) => {
+  res.cookie('refreshtoken', refreshtoken, {
     httpOnly: true,
     path: '/refresh_token',
   });

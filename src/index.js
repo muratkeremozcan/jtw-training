@@ -6,6 +6,7 @@ const { verify } = require('jsonwebtoken');
 const { hash, compare } = require('bcryptjs');
 
 const { fakeDB } = require('./fakeDB.js');
+const { isAuth } = require('./isAuth.js');
 const { createAccessToken, createRefreshToken, sendAccessToken, sendRefreshToken } = require('./tokens.js');
 
 // 1. Register a user
@@ -70,14 +71,16 @@ server.post('/login', async (req, res) => {
     // 2. Compare crypted password, see if it checks out. Send error if not
     const valid = await compare(password, user.password);
     if (!valid) throw new Error('password not correct');
-    // 3. If user exists and password is correct, Create Refresh and Access token
+    // 3. If user exists and password is correct, Create Refresh and Access tokens
     // Access token should have short life time, Refresh should have long life time
+    // the idea is Access token, if compromised, is short lived. An attacker has limited time
+    // Refresh token ,if compromised, requires a client id and secret in addition to itself
     const accessToken = createAccessToken(user.id);
     const refreshToken = createRefreshToken(user.id);
-    // 4. put the refresh token in the database
+    // 4. put the Refreshtoken in the database
     user.refreshToken = refreshToken;
     console.log(fakeDB);
-    // 5. Send the token. Refresh token as a cookie and access token as a regular response
+    // 5. Send the tokens. Refresh token as a cookie and access token as a regular response
     // refresh token has to be sent first because res.send in sendAccessToken finishes the state
     sendRefreshToken(res, refreshToken);
     sendAccessToken(req, res, accessToken);
@@ -88,6 +91,30 @@ server.post('/login', async (req, res) => {
     });
   }
 });
+
+// 3. Logout a user
+server.post('/logout', async (req, res) => {
+  res.clearCookie('refreshToken'); // wipe out the refresh token from the cookie
+  return res.send({
+    message: 'Logged out'
+  })
+});
+
+// 4. Protected route
+server.post('/protected', async (req, res) => {
+  try {
+    const userId = isAuth(req);
+    if (userId !== null) {
+      res.send({
+        data: 'This is protected data.',
+      });
+    }
+  } catch (err) {
+    res.send({
+      error: `${err.message}`,
+    });
+  }
+})
 
 // server on port 4000
 server.listen(process.env.PORT, () =>
