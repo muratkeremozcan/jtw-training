@@ -10,5 +10,5 @@ const isAuth = req => {
 };
 
 module.exports = {
-  isAuth
+  isAuth,
 };

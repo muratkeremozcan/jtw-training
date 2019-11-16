@@ -4,59 +4,59 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const { verify } = require('jsonwebtoken');
 const { hash, compare } = require('bcryptjs');
-
+const {
+  createAccessToken,
+  createRefreshToken,
+  sendRefreshToken,
+  sendAccessToken,
+} = require('./tokens.js');
 const { fakeDB } = require('./fakeDB.js');
 const { isAuth } = require('./isAuth.js');
-const { createAccessToken, createRefreshToken, sendAccessToken, sendRefreshToken } = require('./tokens.js');
 
 // 1. Register a user
 // 2. Login a user
-// 3. Logout the user
-// 4. setup a protected route
-// 5. get a new access token with a refresh token
+// 3. Logout a user
+// 4. Setup a protected route
+// 5. Get a new accesstoken with a refresh token
 
-// create express server
 const server = express();
 
-// use express middleware for easier cookie handling
+// Use express middleware for easier cookie handling
 server.use(cookieParser());
 
-// front-end on 3000, this will make sure front-end server can communicate with each other
 server.use(
   cors({
     origin: 'http://localhost:3000',
-    credentials: true
-  })
+    credentials: true,
+  }),
 );
 
-// Configuration for Express server: needed to be able to ready body data
+// Needed to be able to read body data
 server.use(express.json()); // to support JSON-encoded bodies
-server.use(express.urlencoded({ extended: true })); // support URL-encoded bodies
+server.use(express.urlencoded({ extended: true })); // to support URL-encoded bodies
 
 // 1. Register a user
 server.post('/register', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1. check if the user exists
+    // 1. Check if the user exist
     const user = fakeDB.find(user => user.email === email);
-    if (user) throw new Error('user already exists');
-    // 2. If not user exists, hash the password
+    if (user) throw new Error('User already exist');
+    // 2. If not user exist already, hash the password
     const hashedPassword = await hash(password, 10);
-    // 3. Insert the user in the database
+    // 3. Insert the user in "database"
     fakeDB.push({
-      id: fakeDB.length, // add it to the end
+      id: fakeDB.length,
       email,
-      password: hashedPassword
+      password: hashedPassword,
     });
-    res.send({
-      message: 'User Created'
-    });
+    res.send({ message: 'User Created' });
     console.log(fakeDB);
   } catch (err) {
     res.send({
-      error: `${err.message}`
-    })
+      error: `${err.message}`,
+    });
   }
 });
 
@@ -65,26 +65,22 @@ server.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1. Find user in database. If not exists, send error
+    // 1. Find user in array. If not exist send error
     const user = fakeDB.find(user => user.email === email);
-    if (!user) throw new Error('user does not exist');
-    // 2. Compare crypted password, see if it checks out. Send error if not
+    if (!user) throw new Error('User does not exist');
+    // 2. Compare crypted password and see if it checks out. Send error if not
     const valid = await compare(password, user.password);
-    if (!valid) throw new Error('password not correct');
-    // 3. If user exists and password is correct, Create Refresh and Access tokens
-    // Access token should have short life time, Refresh should have long life time
-    // the idea is Access token, if compromised, is short lived. An attacker has limited time
-    // Refresh token ,if compromised, requires a client id and secret in addition to itself
-    const accessToken = createAccessToken(user.id);
-    const refreshToken = createRefreshToken(user.id);
-    // 4. put the Refreshtoken in the database
-    user.refreshToken = refreshToken;
-    console.log(fakeDB);
-    // 5. Send the tokens. Refresh token as a cookie and access token as a regular response
-    // refresh token has to be sent first because res.send in sendAccessToken finishes the state
-    sendRefreshToken(res, refreshToken);
-    sendAccessToken(req, res, accessToken);
-
+    if (!valid) throw new Error('Password not correct');
+    // 3. Create Refresh- and Accesstoken
+    const accesstoken = createAccessToken(user.id);
+    const refreshtoken = createRefreshToken(user.id);
+    // 4. Store Refreshtoken with user in "db"
+    // Could also use different version numbers instead.
+    // Then just increase the version number on the revoke endpoint
+    user.refreshtoken = refreshtoken;
+    // 5. Send token. Refreshtoken as a cookie and accesstoken as a regular response
+    sendRefreshToken(res, refreshtoken);
+    sendAccessToken(res, req, accesstoken);
   } catch (err) {
     res.send({
       error: `${err.message}`,
@@ -93,11 +89,12 @@ server.post('/login', async (req, res) => {
 });
 
 // 3. Logout a user
-server.post('/logout', async (req, res) => {
-  res.clearCookie('refreshToken'); // wipe out the refresh token from the cookie
+server.post('/logout', (_req, res) => {
+  res.clearCookie('refreshtoken', { path: '/refresh_token' });
+  // Logic here for also remove refreshtoken from db
   return res.send({
-    message: 'Logged out'
-  })
+    message: 'Logged out',
+  });
 });
 
 // 4. Protected route
@@ -114,9 +111,37 @@ server.post('/protected', async (req, res) => {
       error: `${err.message}`,
     });
   }
-})
+});
 
-// server on port 4000
+// 5. Get a new access token with a refresh token
+server.post('/refresh_token', (req, res) => {
+  const token = req.cookies.refreshtoken;
+  // If we don't have a token in our request
+  if (!token) return res.send({ accesstoken: '' });
+  // We have a token, let's verify it!
+  let payload = null;
+  try {
+    payload = verify(token, process.env.REFRESH_TOKEN_SECRET);
+  } catch (err) {
+    return res.send({ accesstoken: '' });
+  }
+  // token is valid, check if user exist
+  const user = fakeDB.find(user => user.id === payload.userId);
+  if (!user) return res.send({ accesstoken: '' });
+  // user exist, check if refreshtoken exist on user
+  if (user.refreshtoken !== token)
+    return res.send({ accesstoken: '' });
+  // token exist, create new Refresh- and accesstoken
+  const accesstoken = createAccessToken(user.id);
+  const refreshtoken = createRefreshToken(user.id);
+  // update refreshtoken on user in db
+  // Could have different versions instead!
+  user.refreshtoken = refreshtoken;
+  // All good to go, send new refreshtoken and accesstoken
+  sendRefreshToken(res, refreshtoken);
+  return res.send({ accesstoken });
+});
+
 server.listen(process.env.PORT, () =>
-  console.log(`server listening on port ${process.env.PORT}`)
+  console.log(`Server listening on port ${process.env.PORT}!`),
 );

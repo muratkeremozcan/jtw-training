@@ -20,9 +20,20 @@ Content-Type: application/json
 }
 ###
 
+### you may need to past the access to ken you get from login
 # @name testProtectedRoute
 POST http://localhost:4000/protected
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTU3MzkxMDU4NCwiZXhwIjoxNTczOTExNDg0fQ.cKr86z0Q3Br34YUfx5GCatBJQFST2z2Uawt5eeacgJk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTU3MzkxMTUyNSwiZXhwIjoxNTczOTEyNDI1fQ.1rT0M-IoNugrXIiDjOnq1zlagHJmAw7YXUBkZF2CUnI
+
+{
+  "email": "murat.hey@gmail.com",
+  "password": "test"
+}
+###
+
+# @name testRefresh
+POST http://localhost:4000/refresh_token
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTU3MzkxMTUyNSwiZXhwIjoxNTczOTEyNDI1fQ.1rT0M-IoNugrXIiDjOnq1zlagHJmAw7YXUBkZF2CUnI
 
 {
   "email": "murat.hey@gmail.com",

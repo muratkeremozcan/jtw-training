@@ -1,4 +1,3 @@
-  
 const { sign } = require('jsonwebtoken');
 
 // Create tokens
@@ -17,15 +16,15 @@ const createRefreshToken = userId => {
 
 // Send tokens
 // ----------------------------------
-const sendAccessToken = (req, res, accesstoken) => {
+const sendAccessToken = (res, req, accesstoken) => {
   res.send({
     accesstoken,
     email: req.body.email,
   });
 };
 
-const sendRefreshToken = (res, refreshtoken) => {
-  res.cookie('refreshtoken', refreshtoken, {
+const sendRefreshToken = (res, token) => {
+  res.cookie('refreshtoken', token, {
     httpOnly: true,
     path: '/refresh_token',
   });
