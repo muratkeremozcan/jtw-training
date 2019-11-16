@@ -6,6 +6,7 @@ const { verify } = require('jsonwebtoken');
 const { hash, compare } = require('bcryptjs');
 
 const { fakeDB } = require('./fakeDB.js');
+const { createAccessToken, createRefreshToken, sendAccessToken, sendRefreshToken } = require('./tokens.js');
 
 // 1. Register a user
 // 2. Login a user
@@ -31,7 +32,6 @@ server.use(
 server.use(express.json()); // to support JSON-encoded bodies
 server.use(express.urlencoded({ extended: true })); // support URL-encoded bodies
 
-
 // 1. Register a user
 server.post('/register', async (req, res) => {
   const { email, password } = req.body;
@@ -39,7 +39,7 @@ server.post('/register', async (req, res) => {
   try {
     // 1. check if the user exists
     const user = fakeDB.find(user => user.email === email);
-    if (user) throw new Error ('user already exists');
+    if (user) throw new Error('user already exists');
     // 2. If not user exists, hash the password
     const hashedPassword = await hash(password, 10);
     // 3. Insert the user in the database
@@ -69,13 +69,23 @@ server.post('/login', async (req, res) => {
     if (!user) throw new Error('user does not exist');
     // 2. Compare crypted password, see if it checks out. Send error if not
     const valid = await compare(password, user.password);
-    if(!valid) throw new Error('password not correct');
+    if (!valid) throw new Error('password not correct');
     // 3. If user exists and password is correct, Create Refresh and Access token
     // Access token should have short life time, Refresh should have long life time
-    // const accessToken = 
-    // const refreshToken =  
-  } catch (err) {
+    const accessToken = createAccessToken(user.id);
+    const refreshToken = createRefreshToken(user.id);
+    // 4. put the refresh token in the database
+    user.refreshToken = refreshToken;
+    console.log(fakeDB);
+    // 5. Send the token. Refresh token as a cookie and access token as a regular response
+    // refresh token has to be sent first because res.send in sendAccessToken finishes the state
+    sendRefreshToken(res, refreshToken);
+    sendAccessToken(req, res, accessToken);
 
+  } catch (err) {
+    res.send({
+      error: `${err.message}`,
+    });
   }
 });
 
