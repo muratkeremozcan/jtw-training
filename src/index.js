@@ -65,22 +65,23 @@ server.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // 1. Find user in array. If not exist send error
+    // 1. Find user in array. If not existing, send error
     const user = fakeDB.find(user => user.email === email);
     if (!user) throw new Error('User does not exist');
-    // 2. Compare crypted password and see if it checks out. Send error if not
-    const valid = await compare(password, user.password);
-    if (!valid) throw new Error('Password not correct');
-    // 3. Create Refresh- and Accesstoken
+    // 2. If the user exists, compare crypted password and see if it checks out. Send error if not
+    const validPw = await compare(password, user.password);
+    if (!validPw) throw new Error('Password not correct');
+    // 3. User exists, password ok, now create refresh(long) and access (short) tokens
     const accesstoken = createAccessToken(user.id);
     const refreshtoken = createRefreshToken(user.id);
     // 4. Store Refreshtoken with user in "db"
     // Could also use different version numbers instead.
     // Then just increase the version number on the revoke endpoint
     user.refreshtoken = refreshtoken;
-    // 5. Send token. Refreshtoken as a cookie and accesstoken as a regular response
+    // 5. Send tokens. Refreshtoken as a cookie and accesstoken as a regular response
     sendRefreshToken(res, refreshtoken);
     sendAccessToken(req, res, accesstoken);
+    console.log(fakeDB);
   } catch (err) {
     res.send({
       error: `${err.message}`,
@@ -93,6 +94,7 @@ server.post('/logout', (_req, res) => {
   // sendRefreshToken sends the refresh to to the /refresh_token path also; make sure to clear it too
   res.clearCookie('refreshtoken', { path: '/refresh_token' });
   // Logic here for also remove refreshtoken from db
+  console.log(fakeDB);
   return res.send({
     message: 'Logged out',
   });
@@ -113,20 +115,23 @@ server.post('/protected', async (req, res) => {
   }
 });
 
-// 5. Get a new access token with a refresh token
+// 5. Get a new access & refresh tokens
 server.post('/refresh_token', (req, res) => {
+  // if we are refreshing, we must have a userAccessToken in our request, lets check that
   const token = req.cookies.refreshtoken;
   // If we don't have a token in our request
   if (!token) return res.send({ message: 'you do not have a valid refresh token in your request, you should login first' });
   // We have a token, let's verify it!
-  let payload = null;
+  let verifiedToken = null;
   try {
-    payload = verify(token, process.env.REFRESH_TOKEN_SECRET);
+    verifiedToken = verify(token, process.env.REFRESH_TOKEN_SECRET);
   } catch (err) {
     return res.send({ message: 'your token could not be verified' });
   }
-  // token is valid, check if user exists
-  const user = fakeDB.find(user => user.id === payload.userId);
+  // verify returns { userId: 1, iat: 1573986745, exp: 1574591545 }
+  console.log(verifiedToken);
+  // token is valid, check if the user exists
+  const user = fakeDB.find(user => user.id === verifiedToken.userId);
   if (!user) return res.send({ accesstoken: 'the user does not exist, create it first' });
   // user exists, check if refreshtoken exists on user
   if (user.refreshtoken !== token)
@@ -138,8 +143,8 @@ server.post('/refresh_token', (req, res) => {
   // Could have different versions instead!
   user.refreshtoken = refreshtoken;
   // All good to go, send new refreshtoken and accesstoken
-  sendRefreshToken(res, refreshtoken);
   console.log(fakeDB);
+  sendRefreshToken(res, refreshtoken);
   return res.send({ accesstoken });
 });
 
