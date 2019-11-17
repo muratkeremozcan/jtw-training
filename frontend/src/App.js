@@ -24,7 +24,7 @@ function App() {
     navigate('/');
   }
 
-  // First thing, check if a refreshtoken exist
+  // First thing, check if a refreshtoken exists
   useEffect(() => {
     async function checkRefreshToken() {
       const result = await (await fetch('http://localhost:4000/refresh_token', {
