@@ -38,7 +38,7 @@ server listening on port 4000
      '$2a$10$1KSDN7SET1xEtqAC1rJCjuftf1x5gUrF7wD5NksdYlFsNyM3m9NSi' } ]
 ```
 
-Sanity test the rest of the `test.rest` file top to bottom.
+Sanity test the rest of the `test.rest` file top to bottom. You may need vscode REST Client extension.
 
 `npm i` in the front-end folder, then start the front-end  app (under frontend folder, runs on port 3000);
 ```bash
