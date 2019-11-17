@@ -2,7 +2,7 @@ JSON web token training.
 
 https://www.youtube.com/watch?v=x5gLL8-M9Fo&feature=youtu.be
 
-Start the server (port 4000):
+Start the server (under server folder, runs on port 4000):
 ```bash
 npm start
 ```
@@ -21,3 +21,8 @@ server listening on port 4000
 ```
 
 Sanity test the rest of the `test.rest` file top to bottom.
+
+Start the app (under frontend folder, runs on port 3000);
+```bash
+npm start
+```
